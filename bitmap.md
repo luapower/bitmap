@@ -1,10 +1,14 @@
-# In-memory bitmaps for LuaJIT
+---
+project: bitmap
+tagline: In-memory bitmaps for LuaJIT
+---
 
-v1.3 | [main](http://code.google.com/p/lua-files/source/browse/bitmap.lua) | [dither](http://code.google.com/p/lua-files/source/browse/bitmap_dither.lua) | [effects](http://code.google.com/p/lua-files/source/browse/bitmap_effects.lua) | [rgbaf](http://code.google.com/p/lua-files/source/browse/bitmap_rgbaf.lua) | [blend](http://code.google.com/p/lua-files/source/browse/bitmap_blend.lua) | [test](http://code.google.com/p/lua-files/source/browse/bitmap_test.lua) | [demo](http://code.google.com/p/lua-files/source/browse/bitmap_demo.lua) | [blend demo](http://code.google.com/p/lua-files/source/browse/bitmap_blend_demo.lua) | LuaJIT 2
+v1.3 | LuaJIT 2
 
-## `local bitmap  require'bitmap'`
+## `local bitmap = require'bitmap'`
 
-# Features
+## Features
+
   * multiple pixel formats, color spaces, channel layouts, scanline orderings, row strides, and bit depths.
     * arbitrary row strides, including sub-byte strides.
     * top-down and bottom-up scanline order.
@@ -13,7 +17,8 @@ v1.3 | [main](http://code.google.com/p/lua-files/source/browse/bitmap.lua) | [di
   * dithering, pixel effects, filters.
   * fast (see benchmarks).
 
-# Limitations
+## Limitations
+
   * only packed formats, no separate plane formats
     * but: custom conversions to gray8 and gray16 can be used to separate the channels of any format into separate bitmaps.
   * only expanded formats, no palette formats
@@ -21,7 +26,7 @@ v1.3 | [main](http://code.google.com/p/lua-files/source/browse/bitmap.lua) | [di
   * no conversions to cmyk (would need color profiling)
   * no conversions to ycc and ycck
 
-# What's a bitmap?
+## What's a bitmap?
 
 A bitmap is a table with the following fields:
 
@@ -32,7 +37,7 @@ A bitmap is a table with the following fields:
   * `size` - size of the pixel buffer, in bytes.
   * `format` - the pixel format, either a string naming a predefined format (below table), or a table specifying a custom format (see customization).
 
-## Predefined formats
+### Predefined formats
 
 **name**                          **colortype**       **channels**       **bits/channel**   **bits/pixel**
 --------------------------------- ------------------- ------------------ ------------------ ---------------
@@ -60,7 +65,8 @@ ycck8                             ycck8               JPEG YCbCrK 8      8      
 rgbaf                             rgbaf               RGB+alpha          32                 128
 rgbad                             rgbaf               RGB+alpha          64                 256
 
-## Predefined colortypes
+
+### Predefined colortypes
 
 **name**       **channels**      **value type**        **value range**
 -------------- ----------------- --------------------- -----------------
@@ -73,7 +79,8 @@ ycc8           y, c, c           integer               0..0xff
 ycck8          y, c, c, k        integer               0..0xff
 rgbaf          r, g, b, a        float or double       0..1
 
-# Bitmap operations
+
+## Bitmap operations
 
 ## `bitmap.new(w, h, format, [bottom_up], [stride_aligned], [stride]) -> new_bmp`
 
@@ -101,7 +108,7 @@ To get real cropping, just copy the bitmap, specifying the format and orientatio
 *Limitation:* For 1, 2, 4 bpp formats, the coordinates must be such that the data pointer points to the beginning of a byte (that is, is not fractional). For a non-fractional stride, this means the `x` coordinate must be a multiple of 8, 4, 2 respectively. For fractional strides don't even bother.
 
 
-# Pixel interface
+## Pixel interface
 
 ## `bitmap.pixel_interface(bitmap[, colortype]) -> getpixel, setpixel`
 
@@ -110,23 +117,25 @@ Return an API for getting and setting individual pixels of a bitmap object:
   * `setpixel(x, y, a, b, c, ...)`
 where a, b, c are the individual color channels, converted to the specified colortype or in the colortype of the bitmap (i.e. r, g, b, a for the 'rgba' colortype, etc.).
 
-Example:
+### Example:
 
-	local function darken(r, g, b, a)
-		return r / 2, g / 2, b / 2, a / 2) --make 2x darker
+~~~{.lua}
+local function darken(r, g, b, a)
+	return r / 2, g / 2, b / 2, a / 2) --make 2x darker
+end
+
+local getpixel, setpixel = pixel_interface(bmp)
+for y = 0, bmp.h-1 do
+	for x = 0, bmp.w-1 do
+		setpixel(x, y, darken(getpixel(x, y)))
 	end
+end
 
-	local getpixel, setpixel = pixel_interface(bmp)
-	for y = 0, bmp.h-1 do
-		for x = 0, bmp.w-1 do
-			setpixel(x, y, darken(getpixel(x, y)))
-		end
-	end
+--the above has the same effect as:
+convert(bmp, bmp, darken)
+~~~
 
-	--the above has the same effect as:
-	convert(bmp, bmp, darken)
-
-# Dithering
+## Dithering
 
 ## `bitmap.dither.fs(bmp, rbits, gbits, bbits, abits)`
 
@@ -137,7 +146,7 @@ Dither a bitmap using the [Floyd-Steinberg dithering](http://en.wikipedia.org/wi
 Dither a bitmap using the [ordered dithering](http://en.wikipedia.org/wiki/Ordered_dithering) algorithm. `mapsize` specifies the threshold map to use and can be 2, 3, 4 or 8. Use the demo to see how this parameter affects the output quality depending on the output format (it's not a clear-cut choice). Implemented for 2-channel and 4-channel colortypes. Note that actual clipping of the low bits is not done, it will be done naturally when converting the bitmap to a lower bit depth.
 
 
-# Pixel effects
+## Pixel effects
 
 ## `bitmap.invert(bmp)`
 
@@ -155,18 +164,19 @@ Convolve a bitmap using a kernel matrix (a Lua array of arrays of the same lengt
 
 Sharpen a bitmap.
 
-# Blending
+## Blending
 
 ## `bitmap.blend(source_bmp, dest_bmp, [operator], [x], [y])`
 
 Blend `source_bmp` into `dest_bmp` using a blending operator at `x,y` coordinates in the target bitmap (default is `0,0`). Operators are in the `bitmap.blend_op` table for inspection.
 
 
-# Utilities
+## Utilities
 
 ## `bitmap.fit(bmp, [x], [y], [w], [h]) -> x1, y1, w1, h1`
 
-Adjust a box to fit into a bitmap. Use this to range-check input coordinates before writing into the bitmap data buffer, to guard against buffer overflow. Check for zero width or height before trying to create a bitmap with the fitted coordinates.
+Adjust a box to fit into a bitmap. Use this to range-check input coordinates before writing into the bitmap data buffer,
+to guard against buffer overflow. Check for zero width or height before trying to create a bitmap with the fitted coordinates.
 
 ## `bitmap.min_stride(format, width) -> min_stride`
 
@@ -177,7 +187,7 @@ Return the minimum stride in bytes given a format and width. A bitmap data buffe
 Given a stride, return the smallest stride that is a multiple of 4 bytes.
 
 
-# Introspection
+## Introspection
 
 ## `bitmap.conversions(source_format) -> iter() -> name, def`
 
@@ -188,7 +198,7 @@ Given a source bitmap format, iterate through all the formats that the source fo
 Print the list of supported pixel formats and the list of supported colortype conversions.
 
 
-# Customization
+## Customization
 
 ## Custom formats
 
@@ -207,14 +217,12 @@ A custom colortype definition is a table with the following fields:
   * `max` - maximum value to which the channel values need to be clipped.
   * `bpc` - bits/channel - same meaning as `max` but in bits.
 
-# Extending
+## Extending
 
 Extending the `bitmap` module with new colortypes, formats, conversions and module functions is easy. Look at the `bitmap_rgbaf` sub-module for an example on how to do that. For the submodule to be loaded automatically though, you need to reference it in the `bitmap` module too in a few key spots (look at how `rgbaf` does it, it's very easy).
 
-# TODO
+## TODO
 
   * fill with a single color using row-by-row memfill (in fact, add a `convert_row` callback arg. in `convert()` analog to `convert_pixel`)
   * premuliply / unpremultiply alpha
 
-----
-See also: [imagefile].
