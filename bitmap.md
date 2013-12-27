@@ -3,8 +3,6 @@ project: bitmap
 tagline: In-memory bitmaps for LuaJIT
 ---
 
-v1.3 | LuaJIT 2
-
 ## `local bitmap = require'bitmap'`
 
 ## Features
