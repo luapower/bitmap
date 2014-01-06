@@ -504,64 +504,7 @@ end
 
 --bitmap converter
 
---[[TODO: remove this, doesn't work
-local cache = {}
-
-local function gen_loop(src_format, dst_format)
-	local src_data_ctype = ffi.typeof('$ *', ffi.typeof(src_format.ctype))
-	local dst_data_ctype = ffi.typeof('$ *', ffi.typeof(dst_format.ctype))
-
-	if src_format.colortype ~= dst_format.colortype then
-		local convert_pixel = conv[src_format.colortype][dst_format.colortype]
-		if not convert_pixel then return end
-
-		return function(w, h, src_stride, dj, dst_stride, src_pixelsize, dst_pixelsize, src_data, dst_data)
-			src_data = ffi.cast(src_data_ctype, src_data)
-			dst_data = ffi.cast(dst_data_ctype, dst_data)
-			for sj = 0, (h - 1) * src_stride, src_stride do
-				for i = 0, w-1 do
-					dst_format.write(dst_data, dj + i * dst_pixelsize, convert_pixel(
-						src_format.read(src_data, sj + i * src_pixelsize)))
-				end
-				dj = dj + dst_stride
-			end
-		end
-	end
-	return function(w, h, src_stride, dj, dst_stride, src_pixelsize, dst_pixelsize, src_data, dst_data)
-		src_data = ffi.cast(src_data_ctype, src_data)
-		dst_data = ffi.cast(dst_data_ctype, dst_data)
-		for sj = 0, (h - 1) * src_stride, src_stride do
-			for i = 0, w-1 do
-				dst_format.write(dst_data, dj + i * dst_pixelsize,
-					src_format.read(src_data, sj + i * src_pixelsize))
-			end
-			dj = dj + dst_stride
-		end
-	end
-end
-
-for src in pairs(formats) do
-	cache[src] = {}
-	for dst in pairs(formats) do
-		if src ~= dst then
-			cache[src][dst] = gen_loop(valid_format(src), valid_format(dst))
-		end
-	end
-end
-]]
-
 local function convert(src, dst, convert_pixel)
-
-	--[[TODO: remove this
-	local src_format, src_data, src_stride, src_pixelsize = data_interface(src)
-	local dst_format, dst_data, dst_stride, dst_pixelsize = data_interface(dst)
-
-	local loop = cache[src.format][dst.format]
-	if not loop then return end
-
-	loop(src.w, src.h, src_stride, 0, dst_stride, src_pixelsize, dst_pixelsize, src.data, dst.data)
-	]]
-
 	assert(src.h == dst.h)
 	assert(src.w == dst.w)
 	local src_format, src_data, src_stride, src_pixelsize = data_interface(src)
