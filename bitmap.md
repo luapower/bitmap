@@ -1,7 +1,6 @@
 ---
 project:   bitmap
 tagline:   In-memory bitmaps for LuaJIT
-category:  Raster Images
 ---
 
 ## `local bitmap = require'bitmap'`
