@@ -1,6 +1,6 @@
 ---
-project:   bitmap
-tagline:   In-memory bitmaps for LuaJIT
+project: bitmap
+tagline: in-memory bitmaps
 ---
 
 ## `local bitmap = require'bitmap'`
