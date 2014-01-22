@@ -154,7 +154,7 @@ function player:on_render(cr)
 		cx = cx + bmp.w + 10
 	end
 
-	show'media/bmp/bg.bmp'
+	show(glue.bin..'/media/bmp/bg.bmp')
 	--show'media/bmp/parrot.bmp'
 	--show'media/bmp/rgb_3bit.bmp'
 	--show'media/bmp/rgb_24bit.bmp'
