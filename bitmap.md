@@ -201,6 +201,7 @@ Print the list of supported pixel formats and the list of supported colortype co
 ## Custom formats
 
 A custom pixel format definition is a table with the following fields:
+
   * `bpp` - pixel size, in bits (must be an even number of bits).
   * `ctype` - C type to cast `data` to when reading and writing pixels (see below).
   * `colortype` - a string naming a standard color type or a table specifying a custom color type. The channel values that `read` and `write` refer to depend on the colortype, eg. for the 'rgba8' colortype, the read function must return 4 numbers in the 0-255 range corresponding to the R, G, B, A channels.
@@ -211,6 +212,7 @@ A custom pixel format definition is a table with the following fields:
 ## Custom colortypes
 
 A custom colortype definition is a table with the following fields:
+
   * `channels` - a string with each letter a channel name, eg. 'rgba', so that `#channels` indicates the number of channels.
   * `max` - maximum value to which the channel values need to be clipped.
   * `bpc` - bits/channel - same meaning as `max` but in bits.
