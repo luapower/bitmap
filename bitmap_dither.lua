@@ -53,7 +53,7 @@ end
 
 --ordered dithering
 
-local tmap = {[2] = {}, [3] = {}, [4] = {}, [8] = {}} --threshold maps from wikipedia
+local tmap = {} --threshold maps from wikipedia
 
 tmap[2] = {[0] =
 	{[0] = 1, 3},
