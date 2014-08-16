@@ -522,11 +522,14 @@ local function paint(src, dst, convert_pixel)
 	local src_format, src_data, src_stride, src_pixelsize = data_interface(src)
 	local dst_format, dst_data, dst_stride, dst_pixelsize = data_interface(dst)
 
+	local src_rowsize = bitmap_row_size(src)
+
 	--try to copy the bitmap whole
 	if src_format == dst_format
 		and not convert_pixel
 		and src_stride == dst_stride
 		and not src.bottom_up == not dst.bottom_up
+		and src_stride == math.floor(src_rowsize) --won't write outside rowsize
 	then
 		if src.data ~= dst.data then
 			assert(src.size == dst.size)
@@ -549,7 +552,6 @@ local function paint(src, dst, convert_pixel)
 	end
 
 	--try to copy the bitmap row-by-row
-	local src_rowsize = bitmap_row_size(src)
 	if
 		src_format == dst_format
 		and not convert_pixel
