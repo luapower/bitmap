@@ -125,7 +125,7 @@ function player:on_render(cr)
 		if self.bits < 8 then
 			local c = 0xff-(2^(8-self.bits)-1)
 			local m = (0xff / c)
-			bitmap.convert(bmp, bmp, function(r,g,b,a)
+			bitmap.paint(bmp, bmp, function(r,g,b,a)
 				return
 					bit.band(r,c) * m,
 					bit.band(g,c) * m,

@@ -5,7 +5,7 @@ function bitmap.invert(bmp)
 	local colortype = bitmap.colortype(bmp)
 	assert(#colortype.channels == 4, 'invalid colortype')
 	local maxval = colortype.max
-	bitmap.convert(bmp, bmp, function(r, g, b, a)
+	bitmap.paint(bmp, bmp, function(r, g, b, a)
 		r = maxval-r
 		g = maxval-g
 		b = maxval-b
@@ -17,7 +17,7 @@ end
 function bitmap.grayscale(bmp)
 	local colortype = bitmap.colortype(bmp)
 	if colortype.channels == 'rgba' then
-		bitmap.convert(bmp, bmp, function(r, g, b, a)
+		bitmap.paint(bmp, bmp, function(r, g, b, a)
 			g = bitmap.rgb2g(r, g, b)
 			return g, g, g, a
 		end)
@@ -99,7 +99,7 @@ function bitmap.convolve(bmp, kernel, edge)
 		end
 	end
 	local sum = sumkernel(kernel)
-	return bitmap.convert(dst, bitmap.new(dst.w, dst.h, bmp.format), function(r, g, b, a)
+	return bitmap.paint(dst, bitmap.new(dst.w, dst.h, bmp.format), function(r, g, b, a)
 		return
 			math.min(math.max(r / sum, 0), 0xff),
 			math.min(math.max(g / sum, 0), 0xff),

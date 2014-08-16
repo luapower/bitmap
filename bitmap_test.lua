@@ -1,4 +1,4 @@
---go @ bin/luajit.exe -e io.stdout:setvbuf'no' -jv *
+--go@ luajit -e io.stdout:setvbuf'no' -jv *
 local bitmap = require'bitmap'
 local glue = require'glue'
 require'unit'
@@ -17,7 +17,7 @@ for src_format in glue.sortedpairs(bitmap.formats) do
 		local dst = bitmap.new(1921, 1081, dst_format, 'bottom_up', 'aligned_stride')
 
 		timediff()
-		bitmap.convert(src, dst)
+		bitmap.paint(src, dst)
 
 		local flag = src_format == dst_format and '*' or ''
 		print(string.format('%-6.4f %-4s %-10s %-10s %6.2f MB   %-10s',

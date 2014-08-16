@@ -1,5 +1,7 @@
---bitmap conversions between different pixel formats, bitmap orientations, strides and bit depths.
---by Cosmin Apreutesei (public domain).
+
+--bitmap conversions and effects leveraging the ffi and the jit compiler.
+--Written by Cosmin Apreutesei. Public domain.
+
 local ffi = require'ffi'
 local bit = require'bit'
 local glue = require'glue'
@@ -21,7 +23,8 @@ local colortypes = glue.autoload({
 --pixel formats
 
 local function format(bpp, ctype, colortype, read, write)
-	return {bpp = bpp, ctype = ffi.typeof(ctype), colortype = colortype, read = read, write = write}
+	return {bpp = bpp, ctype = ffi.typeof(ctype),
+		colortype = colortype, read = read, write = write}
 end
 
 local formats = {}
@@ -287,8 +290,9 @@ function conv.ga16.ga8(g, a)
 		bit.rshift(a, 8)
 end
 
---note: we want to round the result but math.floor(x+0.5) is expensive, so we just add 0.5 and clamp
---the result instead, and let the ffi truncate the value when it writes to an integer pointer.
+--NOTE: we want to round the result but math.floor(x+0.5) is expensive,
+--so we just add 0.5 and clamp the result instead, and let the ffi truncate
+--the value when it writes to an integer pointer.
 local function round8(x, max)
 	return math.min(math.max(x + 0.5, 0), 0xff)
 end
@@ -297,7 +301,7 @@ local function round16(x, max)
 	return math.min(math.max(x + 0.5, 0), 0xffff)
 end
 
---note: needs no clamping as long as the r, g, b values are within range.
+--NOTE: needs no clamping as long as the r, g, b values are within range.
 local function rgb2g(r, g, b)
 	return 0.2126 * r + 0.7152 * g + 0.0722 * b
 end
@@ -320,7 +324,8 @@ function conv.cmyk8.rgba16(c, m, y, k)
 	return c * k, m * k, y * k, 0xffff
 end
 
-function conv.ycc8.rgba8(y, cb, cr) --see http://en.wikipedia.org/wiki/YCbCr#JPEG_conversion
+--from http://en.wikipedia.org/wiki/YCbCr#JPEG_conversion
+function conv.ycc8.rgba8(y, cb, cr)
 	return
 		round8(y                        + 1.402   * (cr - 128)),
 		round8(y - 0.34414 * (cb - 128) - 0.71414 * (cr - 128)),
@@ -371,15 +376,18 @@ local function valid_format(format)
 				or assert(format, 'format missing') --custom format
 end
 
-local function aligned_stride(stride) --smallest stride that is a multiple of 4 bytes
+--smallest stride that is a multiple of 4 bytes
+local function aligned_stride(stride)
 	return bit.band(math.ceil(stride) + 3, bit.bnot(3))
 end
 
-local function min_stride(format, w) --minimum stride for a specific format
+--minimum stride for a specific format
+local function min_stride(format, w)
 	return w * valid_format(format).bpp / 8 --stride is fractional for < 8bpp formats, that's ok.
 end
 
-local function valid_stride(format, w, stride, aligned) --validate stride against min. stride or min. stride
+--validate stride against min. stride
+local function valid_stride(format, w, stride, aligned)
 	local min_stride = min_stride(format, w)
 	stride = stride or min_stride
 	stride = aligned and aligned_stride(stride) or stride
@@ -408,7 +416,8 @@ local function new(w, h, format, bottom_up, stride_aligned, stride)
 	local size = math.ceil(stride * h)
 	assert(size > 0, 'invalid size')
 	local data = ffi.new('uint8_t[?]', size)
-	return {w = w, h = h, format = format, bottom_up = bottom_up or nil, stride = stride, data = data, size = size}
+	return {w = w, h = h, format = format, bottom_up = bottom_up or nil,
+		stride = stride, data = data, size = size}
 end
 
 --low-level bitmap interface for random access to pixels
@@ -466,7 +475,8 @@ end
 
 --bitmap region selector
 
---given a bitmap and a box, adjust the box to fit the bitmap. if the result is an empty box, return bitmap's box.
+--given a bitmap and an inside rectangle, adjust the rectangle to fit the bitmap.
+--if the result is an empty box, return bitmap's box.
 local function fit(bmp, x1, y1, w, h)
 	x1 = x1 or 0
 	y1 = y1 or 0
@@ -488,9 +498,11 @@ local function fit(bmp, x1, y1, w, h)
 	return x1, y1, w, h
 end
 
+--create a bitmap representing a rectangular region of another bitmap.
+--no pixels are copied: the bitmap references the same data buffer as the original.
 local function sub(bmp, x, y, w, h)
 	x, y, w, h = fit(bmp, x, y, w, h)
-	if w == 0 or h == 0 then return end --can't have dimensionless bitmaps
+	if w == 0 or h == 0 then return end --can't have bitmaps in 1 or 0 dimensions
 	local format, data, stride, pixelsize = data_interface(bmp)
 	if bmp.bottom_up then
 		y = bmp.h - y - h
@@ -504,9 +516,9 @@ end
 
 --bitmap converter
 
-local function convert(src, dst, convert_pixel)
-	assert(src.h == dst.h)
-	assert(src.w == dst.w)
+local function paint(src, dst, convert_pixel)
+	assert(src.h == dst.h, 'heights don\'t match')
+	assert(src.w == dst.w, 'widthds don\'t match')
 	local src_format, src_data, src_stride, src_pixelsize = data_interface(src)
 	local dst_format, dst_data, dst_stride, dst_pixelsize = data_interface(dst)
 
@@ -579,7 +591,7 @@ local function copy(src, format, bottom_up, stride_aligned, stride)
 		if bottom_up == nil then bottom_up = src.bottom_up end
 		stride = stride or src.stride
 	end
-	return convert(src, new(src.w, src.h, format, bottom_up, stride_aligned, stride))
+	return paint(src, new(src.w, src.h, format, bottom_up, stride_aligned, stride))
 end
 
 --reflection
@@ -639,7 +651,7 @@ return glue.autoload({
 	colortype = bitmap_colortype,
 	--bitmap operations
 	new = new,
-	convert = convert,
+	paint = paint,
 	copy = copy,
 	sub = sub,
 	--pixel interface
