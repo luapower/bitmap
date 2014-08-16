@@ -122,7 +122,7 @@ local function darken(r, g, b, a)
 	return r / 2, g / 2, b / 2, a / 2) --make 2x darker
 end
 
-local getpixel, setpixel = pixel_interface(bmp)
+local getpixel, setpixel = bitmap.pixel_interface(bmp)
 for y = 0, bmp.h-1 do
 	for x = 0, bmp.w-1 do
 		setpixel(x, y, darken(getpixel(x, y)))
@@ -130,7 +130,7 @@ for y = 0, bmp.h-1 do
 end
 
 --the above has the same effect as:
-convert(bmp, bmp, darken)
+bitmap.convert(bmp, bmp, darken)
 ~~~
 
 ## Dithering
