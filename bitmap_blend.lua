@@ -1,6 +1,7 @@
 --bitmap porter-duff blending submodule. loaded automatically on-demand by the bitmap module.
 --TODO: should I bother implementing an integer-only fast variant for 8bpc rgba types?
 local bitmap = require'bitmap'
+local box2d = require'box2d'
 
 local op = {}
 
@@ -140,7 +141,7 @@ function bitmap.blend(src, dst, operator, x0, y0)
 	local operator = assert(op[operator], 'invalid operator')
 	local src_getpixel = bitmap.pixel_interface(src, 'rgbaf')
 	local dst_getpixel, dst_setpixel = bitmap.pixel_interface(dst, 'rgbaf')
-	local w, h = select(3, bitmap.fit(dst, x0, y0, src.w, src.h))
+	local _, _, w, h = box2d.clip(x0, y0, src.w, src.h, 0, 0, dst.w, dst.h)
 	for y = 0, h-1 do
 		for x = 0, w-1 do
 			local Sr, Sg, Sb, Sa = src_getpixel(x, y)

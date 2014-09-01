@@ -5,6 +5,7 @@
 local ffi = require'ffi'
 local bit = require'bit'
 local glue = require'glue'
+local box2d = require'box2d'
 
 --colortypes
 
@@ -475,33 +476,10 @@ end
 
 --bitmap region selector
 
---given a bitmap and an inside rectangle, adjust the rectangle to fit the bitmap.
---if the result is an empty box, return bitmap's box.
-local function fit(bmp, x1, y1, w, h)
-	x1 = x1 or 0
-	y1 = y1 or 0
-	w = w or bmp.w
-	h = h or bmp.h
-	local x2 = x1 + w
-	local y2 = y1 + h
-	--clip points
-	x1 = math.min(math.max(x1, 0), bmp.w)
-	y1 = math.min(math.max(y1, 0), bmp.h)
-	x2 = math.min(math.max(x2, 0), bmp.w)
-	y2 = math.min(math.max(y2, 0), bmp.h)
-	--normalize corners
-	if x2 < x1 then x1, x2 = x2, x1 end
-	if y2 < y1 then y1, y2 = y2, y1 end
-	--get dimensions again
-	w = math.max(x2 - x1, 0)
-	h = math.max(y2 - y1, 0)
-	return x1, y1, w, h
-end
-
 --create a bitmap representing a rectangular region of another bitmap.
 --no pixels are copied: the bitmap references the same data buffer as the original.
 local function sub(bmp, x, y, w, h)
-	x, y, w, h = fit(bmp, x, y, w, h)
+	x, y, w, h = box2d.clip(x, y, w, h, 0, 0, bmp.w, bmp.h)
 	if w == 0 or h == 0 then return end --can't have bitmaps in 1 or 0 dimensions
 	local format, data, stride, pixelsize = data_interface(bmp)
 	if bmp.bottom_up then
@@ -559,8 +537,10 @@ local function paint(src, dst, convert_pixel)
 		and dst_stride == math.floor(dst_stride) --we can't copy from fractional offsets
 		and src_rowsize == math.floor(src_rowsize) --we can't copy fractional row sizes
 	then
+		dst_data = ffi.cast('char*', dst.data)
+		src_data = ffi.cast('char*', src.data)
 		for sj = 0, (src.h - 1) * src_stride, src_stride do
-			ffi.copy(dst.data + dj, src.data + sj, src_rowsize)
+			ffi.copy(dst_data + dj, src_data + sj, src_rowsize)
 			dj = dj + dst_stride
 		end
 		return dst
@@ -617,7 +597,6 @@ local function conversions(src_format)
 end
 
 local function dumpinfo()
-	local glue = require'glue'
 	local function enumkeys(t)
 		t = glue.keys(t)
 		table.sort(t)
@@ -667,7 +646,6 @@ return glue.autoload({
 	formats = formats,
 	converters = conv,
 	rgb2g = rgb2g,
-	fit = fit,
 }, {
 	dither    = 'bitmap_dither',
 	invert    = 'bitmap_effects',

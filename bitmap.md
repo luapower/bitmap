@@ -33,7 +33,7 @@ tagline: in-memory bitmaps
 A bitmap is a table with the following fields:
 
   * `w`, `h` - bitmap dimensions, in pixels.
-  * `stride` - row stride in bytes. optional. must be at least `w * bpp / 8`
+  * `stride` - row stride in bytes. must be at least `w * bpp / 8`
   (can be fractional for < 8bpp formats).
   * `bottom_up` - if `true`, the rows are are arranged bottom-up instead of top-down.
   * `data` - the pixel buffer (string or a cdata buffer). the pixels must be
@@ -217,24 +217,16 @@ Blend `source_bmp` into `dest_bmp` using a blending operator at `x,y`
 coordinates in the target bitmap (default is `0,0`).
 Operators are in the `bitmap.blend_op` table for inspection.
 
-
-## Utilities
-
-## `bitmap.fit(bmp, [x], [y], [w], [h]) -> x1, y1, w1, h1`
-
-Adjust a rectangle to fit inside a bitmap. Use this to range-check input
-coordinates before writing into the bitmap data buffer, to guard against
-buffer overflow. Check for zero width or height before trying to create
-a bitmap with the fitted coordinates.
-
 #### Example:
 
 Painting a bitmap onto another at specific coordinates, based on bitmap.fit
 and sub-bitmaps:
 
 ~~~{.lua}
+local box2d = require'box2d'
+
 function paint_at_xy(src, dst, x, y)
-	local x, y, w, h = bitmap.fit(dst, x, y, src.w, src.h)
+	local x, y, w, h = box2d.clip(x, y, src.w, src.h, 0, 0, dst.w, dst.h)
 	local src = bitmap.sub(src, 0, 0, w, h)
 	local dst = bitmap.sub(dst, x, y, w, h)
 	if src and dst then
@@ -270,10 +262,15 @@ the format definition which is a table with the fields `bpp`, `ctype`,
 Print the list of supported pixel formats and the list of supported
 colortype conversions.
 
+## Extending
 
-## Customization
+Extending the `bitmap` module with new colortypes, formats, conversions
+and module functions is easy. Look at the `bitmap_rgbaf` sub-module for
+an example on how to do that. For the submodule to be loaded automatically
+you need to reference it in the `bitmap` module too in a few key spots.
+Again, look at how `rgbaf` does it.
 
-## Custom formats
+### Custom formats
 
 A custom pixel format definition is a table with the following fields:
 
@@ -293,7 +290,7 @@ A custom pixel format definition is a table with the following fields:
 	 * for formats that have bpp < 8, the index i is fractional and the bit
 	 offset of the pixel is at `bit.band(i * 8, 7)`.
 
-## Custom colortypes
+### Custom colortypes
 
 A custom colortype definition is a table with the following fields:
 
@@ -301,14 +298,6 @@ A custom colortype definition is a table with the following fields:
   so that `#channels` indicates the number of channels.
   * `max` - maximum value to which the channel values need to be clipped.
   * `bpc` - bits/channel - same meaning as `max` but in bits.
-
-## Extending
-
-Extending the `bitmap` module with new colortypes, formats, conversions
-and module functions is easy. Look at the `bitmap_rgbaf` sub-module for
-an example on how to do that. For the submodule to be loaded automatically
-though, you need to reference it in the `bitmap` module too in a few key
-spots (again, look at how `rgbaf` does it).
 
 ## TODO
 
