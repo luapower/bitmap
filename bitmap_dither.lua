@@ -1,4 +1,7 @@
---bitmap dithering submodule. loaded automatically on-demand by the bitmap module.
+
+--bitmap dithering.
+--Written by Cosmin Apreutesei. Public domain.
+
 local bitmap = require'bitmap'
 
 bitmap.dither = {}
@@ -80,8 +83,8 @@ tmap[8] = {[0] =
 	{[0] = 11, 59,  7, 55, 10, 58,  6, 54},
 	{[0] = 43, 27, 39, 23, 42, 26, 38, 22}}
 
---note: actual clipping of the low bits is not done here, it will be done naturally
---when converting the bitmap to lower bpc.
+--NOTE: actual clipping of the low bits is not done here, it will be done
+--naturally when converting the bitmap to lower bpc.
 local ordered_dither = {}
 
 ordered_dither[4] = function(t, maxval, r, g, b, a)

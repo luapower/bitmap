@@ -1,14 +1,15 @@
 --floating point RGBA bitmap types for HDR storage and internal processing.
 local bitmap = require'bitmap'
+local glue = require'glue'
 local ffi = require'ffi'
 
 bitmap.colortypes.rgbaf = {channels = 'rgba', max = 1}
 
-bitmap.formats.rgbaf = {bpp = 32 * 4, ctype = ffi.typeof'float', colortype = 'rgbaf',
-								read = bitmap.formats.rgba8.read, write = bitmap.formats.rgba8.write}
+bitmap.formats.rgbaf = glue.merge({bpp = 32 * 4, ctype = ffi.typeof'float',
+	colortype = 'rgbaf', bitmap.formats.rgba8})
 
-bitmap.formats.rgbad = {bpp = 64 * 4, ctype = ffi.typeof'double', colortype = 'rgbaf',
-								read = bitmap.formats.rgba8.read, write = bitmap.formats.rgba8.write}
+bitmap.formats.rgbad = glue.merge({bpp = 64 * 4, ctype = ffi.typeof'double',
+	colortype = 'rgbaf', bitmap.formats.rgba8})
 
 bitmap.converters.rgbaf = {}
 

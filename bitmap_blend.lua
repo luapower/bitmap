@@ -1,5 +1,7 @@
---bitmap porter-duff blending submodule. loaded automatically on-demand by the bitmap module.
---TODO: should I bother implementing an integer-only fast variant for 8bpc rgba types?
+
+--bitmap porter-duff blending.
+--Written by Cosmin Apreutesei. Public domain.
+
 local bitmap = require'bitmap'
 local box2d = require'box2d'
 

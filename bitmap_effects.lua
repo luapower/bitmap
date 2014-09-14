@@ -1,4 +1,7 @@
---bitmap pixel effects submodule. loaded automatically on-demand by the bitmap module.
+
+--bitmap pixel effects.
+--Written by Cosmin Apreutesei. Public domain.
+
 local bitmap = require'bitmap'
 
 function bitmap.invert(bmp)
@@ -99,13 +102,16 @@ function bitmap.convolve(bmp, kernel, edge)
 		end
 	end
 	local sum = sumkernel(kernel)
-	return bitmap.paint(dst, bitmap.new(dst.w, dst.h, bmp.format), function(r, g, b, a)
+	local final = bitmap.new(dst.w, dst.h, bmp.format)
+	bitmap.paint(dst, final, function(r, g, b, a)
 		return
 			math.min(math.max(r / sum, 0), 0xff),
 			math.min(math.max(g / sum, 0), 0xff),
 			math.min(math.max(b / sum, 0), 0xff),
 			math.min(math.max(a / sum, 0), 0xff)
 	end)
+	bitmap.free(dst)
+	return final
 end
 
 

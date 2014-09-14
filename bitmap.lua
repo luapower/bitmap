@@ -7,6 +7,9 @@ local bit = require'bit'
 local glue = require'glue'
 local box2d = require'box2d'
 
+local shr, shl, band, bor, bnot =
+	bit.rshift, bit.lshift, bit.band, bit.bor, bit.bnot
+
 --colortypes
 
 local colortypes = glue.autoload({
@@ -23,190 +26,228 @@ local colortypes = glue.autoload({
 
 --pixel formats
 
-local function format(bpp, ctype, colortype, read, write)
+local formats = {}
+
+local function format(bpp, ctype, colortype, read, write, ...)
 	return {bpp = bpp, ctype = ffi.typeof(ctype),
-		colortype = colortype, read = read, write = write}
+		colortype = colortype, read = read, write = write, ...}
 end
 
-local formats = {}
+local function override_format(fmt, ...)
+	return glue.merge(format(...), formats[fmt])
+end
+
+--read/write individual channels
+local function r0(s,i) return s[i] end
+local function r1(s,i) return s[i+1] end
+local function r2(s,i) return s[i+2] end
+local function r3(s,i) return s[i+3] end
+local function rff(s,i) return 0xff end
+local function rffff(s,i) return 0xffff end
+local function w0(d,i,v) d[i] = v end
+local function w1(d,i,v) d[i+1] = v end
+local function w2(d,i,v) d[i+2] = v end
+local function w3(d,i,v) d[i+3] = v end
 
 --8bpc RGB, BGR
 formats.rgb8 = format(24, 'uint8_t', 'rgba8',
 	function(s,i) return s[i], s[i+1], s[i+2], 0xff end,
-	function(d,i,r,g,b) d[i], d[i+1], d[i+2] = r,g,b end)
+	function(d,i,r,g,b) d[i], d[i+1], d[i+2] = r,g,b end,
+	r0, r1, r2, rff, w0, w1, w2)
 
 formats.bgr8 = format(24, 'uint8_t', 'rgba8',
 	function(s,i) return s[i+2], s[i+1], s[i], 0xff end,
-	function(d,i,r,g,b) d[i], d[i+1], d[i+2] = b,g,r end)
+	function(d,i,r,g,b) d[i], d[i+1], d[i+2] = b,g,r end,
+	r2, r1, r0, rff, w2, w1, w0)
 
 --16bpc RGB, BGR
 formats.rgb16 = format(48, 'uint16_t', 'rgba16',
 	function(s,i) return s[i], s[i+1], s[i+2], 0xffff end,
-	formats.rgb8.write)
+	formats.rgb8.write,
+	r0, r1, r2, rffff, w0, w1, w2)
 formats.bgr16 = format(48, 'uint16_t', 'rgba16',
 	function(s,i) return s[i+2], s[i+1], s[i], 0xffff end,
-	formats.bgr8.write)
+	formats.bgr8.write,
+	r2, r1, r0, rffff, w2, w1, w0)
 
 --8bpc RGBX, BGRX, XRGB, XBGR
 formats.rgbx8 = format(32, 'uint8_t', 'rgba8',
 	function(s,i) return s[i], s[i+1], s[i+2], 0xff end,
-	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = r,g,b,0xff end)
+	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = r,g,b,0xff end,
+	r0, r1, r2, rff, w0, w1, w2)
 
 formats.bgrx8 = format(32, 'uint8_t', 'rgba8',
 	function(s,i) return s[i+2], s[i+1], s[i], 0xff end,
-	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = b,g,r,0xff end)
+	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = b,g,r,0xff end,
+	r2, r1, r0, rff, w2, w1, w0)
 
 formats.xrgb8 = format(32, 'uint8_t', 'rgba8',
 	function(s,i) return s[i+1], s[i+2], s[i+3], 0xff end,
-	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = 0xff,r,g,b end)
+	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = 0xff,r,g,b end,
+	r1, r2, r3, rff, w1, w2, w3)
 
 formats.xbgr8 = format(32, 'uint8_t', 'rgba8',
 	function(s,i) return s[i+3], s[i+2], s[i+1], 0xff end,
-	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = 0xff,b,g,r end)
+	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = 0xff,b,g,r end,
+	r3, r2, r1, rff, w3, w2, w1)
 
 --16bpc RGBX, BGRX, XRGB, XBGR
 formats.rgbx16 = format(64, 'uint16_t', 'rgba16',
 	function(s,i) return s[i], s[i+1], s[i+2], 0xffff end,
-	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = r,g,b,0xffff end)
+	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = r,g,b,0xffff end,
+	r0, r1, r2, rffff, w0, w1, w2)
 
 formats.bgrx16 = format(64, 'uint16_t', 'rgba16',
 	function(s,i) return s[i+2], s[i+1], s[i], 0xffff end,
-	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = b,g,r,0xffff end)
+	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = b,g,r,0xffff end,
+	r2, r1, r0, rffff, w2, w1, w0)
 
 formats.xrgb16 = format(64, 'uint16_t', 'rgba16',
 	function(s,i) return s[i+1], s[i+2], s[i+3], 0xffff end,
-	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = 0xffff,r,g,b end)
+	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = 0xffff,r,g,b end,
+	r1, r2, r3, rffff, w1, w2, w3)
 
 formats.xbgr16 = format(64, 'uint16_t', 'rgba16',
 	function(s,i) return s[i+3], s[i+2], s[i+1], 0xffff end,
-	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = 0xffff,b,g,r end)
+	function(d,i,r,g,b) d[i], d[i+1], d[i+2], d[i+3] = 0xffff,b,g,r end,
+	r1, r2, r3, rffff, w1, w2, w3)
 
 --8bpc RGBA, BGRA, ARGB, ARGB
 formats.rgba8 = format(32, 'uint8_t', 'rgba8',
 	function(s,i) return s[i], s[i+1], s[i+2], s[i+3] end,
-	function(d,i,r,g,b,a) d[i], d[i+1], d[i+2], d[i+3] = r,g,b,a end)
+	function(d,i,r,g,b,a) d[i], d[i+1], d[i+2], d[i+3] = r,g,b,a end,
+	r0, r1, r2, r3, w0, w1, w2, w3)
 
 formats.bgra8 = format(32, 'uint8_t', 'rgba8',
 	function(s,i) return s[i+2], s[i+1], s[i], s[i+3] end,
-	function(d,i,r,g,b,a) d[i], d[i+1], d[i+2], d[i+3] = b,g,r,a end)
+	function(d,i,r,g,b,a) d[i], d[i+1], d[i+2], d[i+3] = b,g,r,a end,
+	r2, r1, r0, r3, w2, w1, w0, w3)
 
 formats.argb8 = format(32, 'uint8_t', 'rgba8',
 	function(s,i) return s[i+1], s[i+2], s[i+3], s[i] end,
-	function(d,i,r,g,b,a) d[i], d[i+1], d[i+2], d[i+3] = a,r,g,b end)
+	function(d,i,r,g,b,a) d[i], d[i+1], d[i+2], d[i+3] = a,r,g,b end,
+	r1, r2, r3, r0, w1, w2, w3, w0)
 
 formats.abgr8 = format(32, 'uint8_t', 'rgba8',
 	function(s,i) return s[i+3], s[i+2], s[i+1], s[i] end,
-	function(d,i,r,g,b,a) d[i], d[i+1], d[i+2], d[i+3] = a,b,g,r end)
+	function(d,i,r,g,b,a) d[i], d[i+1], d[i+2], d[i+3] = a,b,g,r end,
+	r1, r2, r3, r0, w1, w2, w3, w0)
 
 --16bpc RGBA, BGRA, ARGB, ABGR
-formats.rgba16 = format(64, 'uint16_t', 'rgba16', formats.rgba8.read, formats.rgba8.write)
-formats.bgra16 = format(64, 'uint16_t', 'rgba16', formats.bgra8.read, formats.bgra8.write)
-formats.argb16 = format(64, 'uint16_t', 'rgba16', formats.argb8.read, formats.argb8.write)
-formats.abgr16 = format(64, 'uint16_t', 'rgba16', formats.abgr8.read, formats.abgr8.write)
+formats.rgba16 = override_format('rgba8', 64, 'uint16_t', 'rgba16')
+formats.bgra16 = override_format('bgra8', 64, 'uint16_t', 'rgba16')
+formats.argb16 = override_format('argb8', 64, 'uint16_t', 'rgba16')
+formats.abgr16 = override_format('abgr8', 64, 'uint16_t', 'rgba16')
 
 --8bpc GRAY and GRAY+APLHA
-formats.g8  = format( 8, 'uint8_t', 'ga8',
-	function(s,i)  return s[i], 0xff end,
-	function(d,i,g,a) d[i] = g end)
+formats.g8 = format( 8, 'uint8_t', 'ga8',
+	function(s,i) return s[i], 0xff end,
+	w0,
+	r0, rff, w0)
 
 formats.ga8 = format(16, 'uint8_t', 'ga8',
 	function(s,i) return s[i], s[i+1] end,
-	function(d,i,g,a) d[i], d[i+1] = g,a end)
+	function(d,i,g,a) d[i], d[i+1] = g,a end,
+	r0, r1, w0, w1)
 
 formats.ag8 = format(16, 'uint8_t', 'ga8',
 	function(s,i) return s[i+1], s[i] end,
-	function(d,i,g,a) d[i], d[i+1] = a,g end)
+	function(d,i,g,a) d[i], d[i+1] = a,g end,
+	r1, r0, w1, w0)
 
 --16bpc GRAY and GRAY+ALPHA
-formats.g16  = format(16, 'uint16_t', 'ga16',
+formats.g16 = format(16, 'uint16_t', 'ga16',
 	function(s,i) return s[i], 0xffff end,
-	formats.g8.write)
+	w0,
+	r0, rffff, w0)
 
-formats.ga16 = format(32, 'uint16_t', 'ga16', formats.ga8.read, formats.ga8.write)
-formats.ag16 = format(32, 'uint16_t', 'ga16', formats.ag8.read, formats.ag8.write)
+formats.ga16 = override_format('ga8', 32, 'uint16_t', 'ga16')
+formats.ag16 = override_format('ag8', 32, 'uint16_t', 'ga16')
 
 --8bpc INVERSE CMYK
-formats.cmyk8 = format(32, 'uint8_t', 'cmyk8', formats.rgba8.read, formats.rgba8.write)
+formats.cmyk8 = override_format('rgba8', 32, 'uint8_t', 'cmyk8')
 
---16bpp RGB and RGBA
-formats.rgb565 = format(16, 'uint16_t', 'rgba8')
-
-function formats.rgb565.read(s,i)
-	return
-					bit.rshift(s[i], 11)      * (255 / 31),
-		bit.band(bit.rshift(s[i],  5), 63) * (255 / 63),
-		bit.band(           s[i],      31) * (255 / 31), 0xff
+--16bpp RGB565
+local function rr(s,i) return      shr(s[i], 11)      * (255 / 31) end
+local function rg(s,i) return band(shr(s[i],  5), 63) * (255 / 63) end
+local function rb(s,i) return band(    s[i],      31) * (255 / 31) end
+local function wr(d,i,v) d[i] = bor(band(d[i], 0x07ff), shl(shr(r, 3), 11)) end
+local function wg(d,i,v) d[i] = bor(band(d[i], 0xf81f), shl(shr(g, 2),  5)) end
+local function wb(d,i,v) d[i] = bor(band(d[i], 0xffe0), shr(b, 3)) end
+local function rrgba(s,i)
+	return rr(s,i), rg(s,i), rb(s,i), 0xff
 end
-
-function formats.rgb565.write(d,i,r,g,b)
-	d[i] = bit.bor(bit.lshift(bit.rshift(r, 3), 11),
-						bit.lshift(bit.rshift(g, 2),  5),
-						           bit.rshift(b, 3))
+local function wrgba(d,i,r,g,b)
+	d[i] = bor(shl(shr(r, 3), 11),
+	           shl(shr(g, 2),  5),
+	               shr(b, 3))
 end
+formats.rgb565 = format(16, 'uint16_t', 'rgba8',
+	rrgba, wrgba, rr, rg, rb, rff, wr, wg, wb)
 
-formats.rgba4444 = format(16, 'uint16_t', 'rgba8')
-
-function formats.rgba4444.read(s,i)
-	return
-					bit.rshift(s[i], 12)      * (255 / 15),
-		bit.band(bit.rshift(s[i],  8), 15) * (255 / 15),
-		bit.band(bit.rshift(s[i],  4), 15) * (255 / 15),
-		bit.band(           s[i],      15) * (255 / 15)
+--16bpp RGB444 and RGBA4444
+local function rr(s,i) return      shr(s[i], 12)      * (255 / 15) end
+local function rg(s,i) return band(shr(s[i],  8), 15) * (255 / 15) end
+local function rb(s,i) return band(shr(s[i],  4), 15) * (255 / 15) end
+local function ra(s,i) return band(    s[i],      15) * (255 / 15) end
+local function wr(d,i,v) d[i] = bor(band(d[i], 0x0fff), shl(shr(r, 4), 12)) end
+local function wg(d,i,v) d[i] = bor(band(d[i], 0xf0ff), shl(shr(g, 4),  8)) end
+local function wb(d,i,v) d[i] = bor(band(d[i], 0xff0f), shl(shr(b, 4),  4)) end
+local function wa(d,i,v) d[i] = bor(band(d[i], 0xfff0),     shr(a, 4)     ) end
+local function rrgba(s,i)
+	return rr(s,i), rg(s,i), rb(s,i), 0xff
 end
-
-function formats.rgba4444.write(d,i,r,g,b,a)
-	d[i] = bit.bor(bit.lshift(bit.rshift(r, 4), 12),
-						bit.lshift(bit.rshift(g, 4),  8),
-						bit.lshift(bit.rshift(b, 4),  4),
-						           bit.rshift(a, 4))
+local function wrgba(d,i,r,g,b)
+	d[i] = bor(shl(shr(r, 4), 12),
+	           shl(shr(g, 4),  8),
+	           shl(shr(b, 4),  4))
 end
+formats.rgb444 = format(16, 'uint16_t', 'rgba8',
+	rrgba, wrgba, rr, rg, rb, rff, wr, wg, wb)
 
-formats.rgba5551 = format(16, 'uint16_t', 'rgba8')
-
-function formats.rgba5551.read(s,i)
-	return
-					bit.rshift(s[i], 11)      * (255 / 31),
-		bit.band(bit.rshift(s[i],  6), 31) * (255 / 31),
-		bit.band(bit.rshift(s[i],  1), 31) * (255 / 31),
-		bit.band(           s[i],       1) *  255
+local function rrgba(s,i)
+	return rr(s,i), rg(s,i), rb(s,i), ra(s,i)
 end
-
-function formats.rgba5551.write(d,i,r,g,b,a)
-	d[i] = bit.bor(bit.lshift(bit.rshift(r, 3), 11),
-						bit.lshift(bit.rshift(g, 3),  6),
-						bit.lshift(bit.rshift(b, 3),  1),
-						           bit.rshift(a, 7))
+local function wrgba(d,i,r,g,b,a)
+	d[i] = bor(shl(shr(r, 4), 12),
+	           shl(shr(g, 4),  8),
+	           shl(shr(b, 4),  4),
+	               shr(a, 4))
 end
+formats.rgba4444 = format(16, 'uint16_t', 'rgba8',
+	rrgba, wrgba, rr, rg, rb, ra, wr, wg, wb, wa)
 
-formats.rgb555 = format(16, 'uint16_t', 'rgba8')
-
-function formats.rgb555.read(s,i)
-	return
-					bit.rshift(s[i], 11)      * (255 / 31),
-		bit.band(bit.rshift(s[i],  6), 31) * (255 / 31),
-		bit.band(bit.rshift(s[i],  1), 31) * (255 / 31), 0xff
+--16bpp RGB555 and RGBA5551
+local function rr(s,i) return      shr(s[i], 11)      * (255 / 31) end
+local function rg(s,i) return band(shr(s[i],  6), 31) * (255 / 31) end
+local function rb(s,i) return band(shr(s[i],  1), 31) * (255 / 31) end
+local function ra(s,i) return band(    s[i],  1)      *  255       end
+local function wr(d,i,v) d[i] = bor(band(d[i], 0x07ff), shl(shr(r, 3), 11)) end
+local function wg(d,i,v) d[i] = bor(band(d[i], 0xf83f), shl(shr(g, 3),  6)) end
+local function wb(d,i,v) d[i] = bor(band(d[i], 0xffc1), shl(shr(b, 3),  1)) end
+local function wa(d,i,v) d[i] = bor(band(d[i], 0xfffe),     shr(a, 7)     ) end
+local function rrgba(s,i)
+	return rr(s,i), rg(s,i), rb(s,i), 0xff
 end
-
-function formats.rgb555.write(d,i,r,g,b)
-	d[i] = bit.bor(bit.lshift(bit.rshift(r, 3), 11),
-						bit.lshift(bit.rshift(g, 3),  6),
-						bit.lshift(bit.rshift(b, 3),  1))
+function wrgba(d,i,r,g,b,a)
+	d[i] = bor(shl(shr(r, 3), 11),
+	           shl(shr(g, 3),  6),
+	           shl(shr(b, 3),  1))
 end
+formats.rgb555 = format(16, 'uint16_t', 'rgba8',
+	rrgba, wrgba, rr, rg, rb, rff, wr, wg, wb)
 
-formats.rgb444 = format(16, 'uint16_t', 'rgba8')
-
-function formats.rgb444.read(s,i)
-	return
-					bit.rshift(s[i], 12)      * (255 / 15),
-		bit.band(bit.rshift(s[i],  8), 15) * (255 / 15),
-		bit.band(bit.rshift(s[i],  4), 15) * (255 / 15), 0xff
+local function rrgba(s,i)
+	return rr(s,i), rg(s,i), rb(s,i), ra(s,i)
 end
-
-function formats.rgb444.write(d,i,r,g,b)
-	d[i] = bit.bor(bit.lshift(bit.rshift(r, 4), 12),
-						bit.lshift(bit.rshift(g, 4),  8),
-						bit.lshift(bit.rshift(b, 4),  4))
+function wrgba(d,i,r,g,b,a)
+	d[i] = bor(shl(shr(r, 3), 11),
+	           shl(shr(g, 3),  6),
+	           shl(shr(b, 3),  1),
+	               shr(a, 7))
 end
+formats.rgba5551 = format(16, 'uint16_t', 'rgba8',
+	rrgba, wrgba, rr, rg, rb, ra, wr, wg, wb, wa)
 
 --sub-byte (< 8bpp) formats
 formats.g1  = format(1, 'uint8_t', 'ga8')
@@ -214,44 +255,48 @@ formats.g2  = format(2, 'uint8_t', 'ga8')
 formats.g4  = format(4, 'uint8_t', 'ga8')
 
 function formats.g1.read(s,i)
-	local sbit = bit.band(i * 8, 7) --i is fractional, that's why this works.
-	return bit.band(bit.rshift(s[i], 7-sbit), 1) * 255, 0xff
+	local sbit = band(i * 8, 7) --i is fractional, that's why this works.
+	return band(shr(s[i], 7-sbit), 1) * 255, 0xff
 end
 
 function formats.g2.read(s,i)
-	local sbit = bit.band(i * 8, 7) --0,2,4,6
-	return bit.band(bit.rshift(s[i], 6-sbit), 3) * (255 / 3), 0xff
+	local sbit = band(i * 8, 7) --0,2,4,6
+	return band(shr(s[i], 6-sbit), 3) * (255 / 3), 0xff
 end
 
 function formats.g4.read(s,i)
-	local sbit = bit.band(i * 8, 7) --0,4
-	return bit.band(bit.rshift(s[i], 4-sbit), 15) * (255 / 15), 0xff
+	local sbit = band(i * 8, 7) --0,4
+	return band(shr(s[i], 4-sbit), 15) * (255 / 15), 0xff
 end
 
-function formats.g1.write(d,i,g,a)
-	local dbit = bit.band(i * 8, 7) --0-7
-	d[i] = bit.bor(
-				bit.band(d[i], bit.rshift(0xffff-0x80, dbit)), --clear the bit
-				bit.rshift(bit.band(g, 0x80), dbit)) --set the bit
+function formats.g1.write(d,i,g)
+	local dbit = band(i * 8, 7) --0-7
+	d[i] = bor(
+				band(d[i], shr(0xffff-0x80, dbit)), --clear the bit
+				shr(band(g, 0x80), dbit)) --set the bit
 end
 
-function formats.g2.write(d,i,g,a)
-	local dbit = bit.band(i * 8, 7) --0,2,4,6
-	d[i] = bit.bor(
-				bit.band(d[i], bit.rshift(0xffff-0xC0, dbit)), --clear the bits
-				bit.rshift(bit.band(g, 0xC0), dbit)) --set the bits
+function formats.g2.write(d,i,g)
+	local dbit = band(i * 8, 7) --0,2,4,6
+	d[i] = bor(
+				band(d[i], shr(0xffff-0xC0, dbit)), --clear the bits
+				shr(band(g, 0xC0), dbit)) --set the bits
 end
 
-function formats.g4.write(d,i,g,a)
-	local dbit = bit.band(i * 8, 7) --0,4
-	d[i] = bit.bor(
-				bit.band(d[i], bit.rshift(0xffff-0xf0, dbit)), --clear the bits
-				bit.rshift(bit.band(g, 0xf0), dbit)) --set the bits
+function formats.g4.write(d,i,g)
+	local dbit = band(i * 8, 7) --0,4
+	d[i] = bor(
+				band(d[i], shr(0xffff-0xf0, dbit)), --clear the bits
+				shr(band(g, 0xf0), dbit)) --set the bits
 end
+
+glue.append(formats.g1, formats.g1.read, rff, formats.g1.write)
+glue.append(formats.g2, formats.g2.read, rff, formats.g2.write)
+glue.append(formats.g4, formats.g4.read, rff, formats.g4.write)
 
 --8bpc YCC and YCCK
-formats.ycc8 = format(24, 'uint8_t', 'ycc8', formats.rgb8.read, formats.rgb8.write)
-formats.ycck8 = format(32, 'uint8_t', 'ycck8', formats.rgba8.read, formats.rgba8.write)
+formats.ycc8  = override_format('rgb8',  24, 'uint8_t', 'ycc8')
+formats.ycck8 = override_format('rgba8', 32, 'uint8_t', 'ycck8')
 
 --formats from other submodules
 glue.autoload(formats, {
@@ -273,10 +318,10 @@ end
 
 function conv.rgba16.rgba8(r, g, b, a)
 	return
-		bit.rshift(r, 8),
-		bit.rshift(g, 8),
-		bit.rshift(b, 8),
-		bit.rshift(a, 8)
+		shr(r, 8),
+		shr(g, 8),
+		shr(b, 8),
+		shr(a, 8)
 end
 
 function conv.ga8.ga16(g, a)
@@ -287,8 +332,8 @@ end
 
 function conv.ga16.ga8(g, a)
 	return
-		bit.rshift(g, 8),
-		bit.rshift(a, 8)
+		shr(g, 8),
+		shr(a, 8)
 end
 
 --NOTE: we want to round the result but math.floor(x+0.5) is expensive,
@@ -379,7 +424,7 @@ end
 
 --smallest stride that is a multiple of 4 bytes
 local function aligned_stride(stride)
-	return bit.band(math.ceil(stride) + 3, bit.bnot(3))
+	return band(math.ceil(stride) + 3, bnot(3))
 end
 
 --minimum stride for a specific format
@@ -412,47 +457,70 @@ local function bitmap_colortype(bmp)
 	return valid_colortype(valid_format(bmp.format).colortype)
 end
 
-local function new(w, h, format, bottom_up, stride_aligned, stride)
+local function new(w, h, format, bottom_up, stride_aligned, stride, big)
 	stride = valid_stride(format, w, stride, stride_aligned)
 	local size = math.ceil(stride * h)
 	assert(size > 0, 'invalid size')
-	local data = ffi.new('uint8_t[?]', size)
+	local data = big and glue.malloc(size) or ffi.new(ffi.typeof('char[$]', size))
 	return {w = w, h = h, format = format, bottom_up = bottom_up or nil,
-		stride = stride, data = data, size = size}
+		stride = stride, data = data, size = size, big = not not big}
+end
+
+local function free(bmp)
+	if bmp.big then
+		glue.free(bmp.data)
+	end
+	bmp.data = nil
 end
 
 --low-level bitmap interface for random access to pixels
 
 local function data_interface(bmp)
 	local format = bitmap_format(bmp)
-	local data = ffi.cast(ffi.typeof('$ *', ffi.typeof(format.ctype)), bmp.data)
-	local stride = valid_stride(bmp.format, bmp.w, bmp.stride)
-	local stride = stride / ffi.sizeof(format.ctype) --stride is now in units of ctype, not bytes!
-	local pixelsize = format.bpp / 8 / ffi.sizeof(format.ctype) --pixelsize is fractional for < 8bpp formats, that's ok.
-	return format, data, stride, pixelsize
+	local data = ffi.cast(ffi.typeof('$*', ffi.typeof(format.ctype)), bmp.data)
+	local stride_bytes = valid_stride(bmp.format, bmp.w, bmp.stride)
+	local stride_ctype = stride_bytes / ffi.sizeof(format.ctype)
+	--NOTE: pixelsize is fractional for < 8bpp formats, that's ok.
+	local pixelsize = format.bpp / 8 / ffi.sizeof(format.ctype)
+	return format, data, stride_ctype, pixelsize
 end
 
---hi-level bitmap interface for random access to pixels
+--coordinate-based bitmap interface for random access to pixels
 
-local function direct_pixel_interface(bmp)
+local function coord_interface(bmp, read, write)
 	local format, data, stride, pixelsize = data_interface(bmp)
-	local getpixel, setpixel
+	local get, set
 	if bmp.bottom_up then
-		function getpixel(x, y)
-			return format.read(data, (bmp.h - y - 1) * stride + x * pixelsize)
+		function get(x, y, ...)
+			return read(data, (bmp.h - y - 1) * stride + x * pixelsize, ...)
 		end
-		function setpixel(x, y, ...)
-			format.write(data, (bmp.h - y - 1) * stride + x * pixelsize, ...)
+		function set(x, y, ...)
+			write(data, (bmp.h - y - 1) * stride + x * pixelsize, ...)
 		end
 	else
-		function getpixel(x, y)
-			return format.read(data, y * stride + x * pixelsize)
+		function get(x, y, ...)
+			return read(data, y * stride + x * pixelsize, ...)
 		end
-		function setpixel(x, y, ...)
-			format.write(data, y * stride + x * pixelsize, ...)
+		function set(x, y, ...)
+			write(data, y * stride + x * pixelsize, ...)
 		end
 	end
-	return getpixel, setpixel
+	return get, set
+end
+
+local function discard() end
+local function channel_interface(bmp, channel)
+	local colortype = bitmap_colortype(bmp)
+	local n = #colortype.channels
+	local format = bitmap_format(bmp)
+	local read = format[channel]
+	local write = format[n + channel] or discard
+	return coord_interface(bmp, read, write)
+end
+
+local function direct_pixel_interface(bmp)
+	local format = bitmap_format(bmp)
+	return coord_interface(bmp, format.read, format.write)
 end
 
 local function pixel_interface(bmp, colortype)
@@ -632,12 +700,14 @@ return glue.autoload({
 	colortype = bitmap_colortype,
 	--bitmap operations
 	new = new,
+	free = free,
 	paint = paint,
 	copy = copy,
 	sub = sub,
 	--pixel interface
 	data_interface = data_interface,
 	pixel_interface = pixel_interface,
+	channel_interface = channel_interface,
 	--reflection
 	conversions = conversions,
 	dumpinfo = dumpinfo,
@@ -654,5 +724,6 @@ return glue.autoload({
 	sharpen   = 'bitmap_effects',
 	blend     = 'bitmap_blend',
 	blend_op  = 'bitmap_blend',
+	resize    = 'bitmap_resize',
 })
 

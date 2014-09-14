@@ -4,6 +4,8 @@ local stdio = require'stdio'
 local ffi = require'ffi'
 local bitmap = require'bitmap'
 
+player.continuous_rendering = true
+
 bitmap.dumpinfo()
 
 local function load_bmp(filename)
@@ -18,7 +20,8 @@ local function load_bmp(filename)
 	local stride = bitmap.aligned_stride(w * 3)
 	local size = stride * h
 	assert(size == ffi.sizeof(bmp) - (data - bmp))
-	return {w = w, h = h, stride = stride, data = data, size = size, format = 'bgr8', bottom_up = true, bmp = bmp}
+	return {w = w, h = h, stride = stride, data = data, size = size,
+		format = 'bgr8', bottom_up = true, bmp = bmp}
 end
 
 local function available(src_format, values)
@@ -107,6 +110,15 @@ function player:on_render(cr)
 											i0 = -20, i1 = 20, step = 1, i = self.sharpen_amount or 4, text = 'amount'}
 
 	end
+	self.resize = self:togglebutton{id = 'resize', x = 10, y = 430, w = 90, h = 24, text = 'resize', selected = self.resize}
+	if self.resize then
+		self.resize_x = self:slider{id = 'resize_x', x = 10 , y = 460, w = 90, h = 24,
+											i0 = 1, i1 = 2000, step = 1, i = self.resize_x or 400, text = 'resize_x'}
+		self.resize_y = self:slider{id = 'resize_y', x = 10 , y = 490, w = 90, h = 24,
+											i0 = 1, i1 = 2000, step = 1, i = self.resize_y or 200, text = 'resize_y'}
+		self.resize_method = self:mbutton{id = 'resize_method', x = 10, y = 520, w = 90, h = 24,
+											values = {'nearest', 'bilinear', 'bilinear1'}, selected = self.resize_method or 'nearest'}
+	end
 
 	--finally, perform the conversions and display up the images
 
@@ -143,14 +155,26 @@ function player:on_render(cr)
 		end
 
 		if self.sharpen then
+			local bmp0 = bmp
 			bmp = bitmap.sharpen(bmp, self.sharpen_amount)
+			bitmap.free(bmp0)
+		end
+
+		if self.resize then
+			local bmp0 = bmp
+			bmp = bitmap.resize[self.resize_method](bmp, bitmap.new(self.resize_x, self.resize_y, bmp.format))
+			bitmap.free(bmp0)
 		end
 
 		if bmp.format ~= self.format then
+			local bmp0 = bmp
 			bmp = bitmap.copy(bmp, self.format, false, true)
+			bitmap.free(bmp0)
 		end
 
 		self:image{x = cx, y = cy, image = bmp}
+		bitmap.free(bmp)
+
 		cx = cx + bmp.w + 10
 	end
 
