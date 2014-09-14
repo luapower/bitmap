@@ -457,17 +457,17 @@ local function bitmap_colortype(bmp)
 	return valid_colortype(valid_format(bmp.format).colortype)
 end
 
-local function new(w, h, format, bottom_up, stride_aligned, stride, big)
+local function new(w, h, format, bottom_up, stride_aligned, stride, malloc)
 	stride = valid_stride(format, w, stride, stride_aligned)
 	local size = math.ceil(stride * h)
 	assert(size > 0, 'invalid size')
-	local data = big and glue.malloc(size) or ffi.new(ffi.typeof('char[$]', size))
+	local data = malloc and glue.malloc(size) or ffi.new(ffi.typeof('char[$]', size))
 	return {w = w, h = h, format = format, bottom_up = bottom_up or nil,
-		stride = stride, data = data, size = size, big = not not big}
+		stride = stride, data = data, size = size, malloc = not not malloc}
 end
 
 local function free(bmp)
-	if bmp.big then
+	if bmp.malloc then
 		glue.free(bmp.data)
 	end
 	bmp.data = nil

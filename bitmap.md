@@ -85,6 +85,37 @@ ycck8          y, c, c, k        integer               0..0xff
 rgbaf          r, g, b, a        float or double       0..1
 
 
+## Quick API Reference
+
+----------------------------------------------------- --------------------------------------------
+__format conversion__
+`bitmap.new(w, h, ...) -> dst`								create a bitmap
+`bitmap.copy(src[, format], ...) -> dst`					copy and convert a bitmap
+`bitmap.paint(src, dst, ...) -> dst`						paint a bitmap
+__cropping__
+`bitmap.sub(src, x, y, w, h) -> dst`						make a sub-bitmap
+__pixel access__
+`bitmap.pixel_interface(src) -> getpixel, setpixel`	get a pixel interface
+`bitmap.channel_interface(bmp, n) -> getval, setval`	get a channel interface
+__dithering__
+`bitmap.dither.fs|ordered(bmp, rN, gN, bN, aN)`			apply dithering
+__effects__
+`bitmap.invert(bmp)`												invert colors
+`bitmap.grayscale(bmp)`											desaturate
+`bitmap.convolve(src, kernel, [edge]) -> dst`			convolve
+`bitmap.sharpen(src[, threshold]) -> dst`					sharpen
+__alpha blending__
+`bitmap.blend(src, dst, [operator], [x], [y])`			blend source into dest bitmap
+__resizing__
+`bitmap.resize.nearest|bilinear(src, w, h) -> dst`		resize to new
+`bitmap.resize.nearest|bilinear(src, dst) -> dst`		resize to dest
+__utilities__
+`bitmap.min_stride(format, width) -> min_stride`		minimum stride for width
+`bitmap.aligned_stride(stride) -> aligned_stride`		minimum stride that is aligned
+`bitmap.row_size(bmp) -> size`								row size in bytes
+----------------------------------------------------- --------------------------------------------
+
+
 ## Bitmap operations
 
 ## `bitmap.new(w, h, format, [bottom_up], [stride_aligned], [stride]) -> new_bmp`
@@ -142,8 +173,10 @@ of 8, 4, 2 respectively. For fractional strides don't even bother.
 ## `bitmap.pixel_interface(bitmap[, colortype]) -> getpixel, setpixel`
 
 Return an API for getting and setting individual pixels of a bitmap object:
+
   * `getpixel(x, y) -> a, b, c, ...`
   * `setpixel(x, y, a, b, c, ...)`
+
 where a, b, c are the individual color channels, converted to the specified
 colortype or in the colortype of the bitmap (i.e. r, g, b, a for the 'rgba'
 colortype, etc.).
@@ -165,6 +198,16 @@ end
 --the above has the same effect as:
 bitmap.convert(bmp, bmp, darken)
 ~~~
+
+
+## Channel interface
+
+## `bitmap.channel_interface(bitmap, channel) -> getvalue, setvalue`
+
+Return an API for getting and setting values from a single color channel:
+
+  * `getvalue(x, y) -> v`
+  * `setvalue(x, y, v)`
 
 
 ## Dithering
@@ -199,17 +242,17 @@ Invert colors.
 
 Convert pixels to grayscale, without changing the format.
 
-## `bitmap.convolve(bmp, kernel, [edge])`
+## `bitmap.convolve(bmp, kernel, [edge]) -> new_bmp`
 
 Convolve a bitmap using a kernel matrix (a Lua array of arrays of the same
 length). `edge` can be `crop`, `wrap` or `extend` (default is `extend`).
 
-## `bitmap.sharpen(bmp[, threshold])`
+## `bitmap.sharpen(bmp[, threshold]) -> new_bmp`
 
 Sharpen a bitmap.
 
 
-## Blending
+## Alpha Blending
 
 ## `bitmap.blend(source_bmp, dest_bmp, [operator], [x], [y])`
 
@@ -234,6 +277,17 @@ function paint_at_xy(src, dst, x, y)
 	end
 end
 ~~~
+
+
+## Resizing
+
+## `bitmap.resize.<method>(bmp, w, h) -> new_bmp`
+## `bitmap.resize.<method>(source_bmp, dest_bmp) -> dest_bmp`
+
+Resize a bitmap. The method can be `nearest` or `bilinear`.
+
+
+## Utilities
 
 ## `bitmap.min_stride(format, width) -> min_stride`
 
