@@ -1,5 +1,5 @@
 
---bitmap conversions and effects leveraging the ffi and the jit compiler.
+--bitmap conversions and processing leveraging LuaJIT.
 --Written by Cosmin Apreutesei. Public domain.
 
 local ffi = require'ffi'
