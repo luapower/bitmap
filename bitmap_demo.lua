@@ -4,8 +4,6 @@ local stdio = require'stdio'
 local ffi = require'ffi'
 local bitmap = require'bitmap'
 
-player.continuous_rendering = true
-
 bitmap.dumpinfo()
 
 local function load_bmp(filename)

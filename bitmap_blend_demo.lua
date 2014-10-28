@@ -13,7 +13,6 @@ end
 
 function player:on_render(cr)
 
-	self.continuous_rendering = true
 	self:checkerboard()
 
 	local function blend(x, y, op)
