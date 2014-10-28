@@ -34,11 +34,7 @@ local function available(src_format, values)
 	return t
 end
 
-local i = 0
 function player:on_render(cr)
-
-	i = (i + 1) % 10
-	if i == 0 then jit.flush() end
 
 	--select file
 

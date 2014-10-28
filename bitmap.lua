@@ -7,6 +7,8 @@ local bit = require'bit'
 local glue = require'glue'
 local box2d = require'box2d'
 
+local floor, ceil, min, max =
+	math.floor, math.ceil, math.min, math.max
 local shr, shl, band, bor, bnot =
 	bit.rshift, bit.lshift, bit.band, bit.bor, bit.bnot
 
@@ -306,45 +308,49 @@ glue.autoload(formats, {
 
 --converters between different standard colortypes
 
-local conv = {rgba8 = {}, rgba16 = {}, ga8 = {}, ga16 = {}, cmyk8 = {}, ycc8 = {}, ycck8 = {}}
+local conv = {
+	rgba8 = {}, rgba16 = {}, ga8 = {}, ga16 = {},
+	cmyk8 = {}, ycc8 = {}, ycck8 = {},
+}
 
 function conv.rgba8.rgba16(r, g, b, a)
 	return
-		r * (65535 / 255),
-		g * (65535 / 255),
-		b * (65535 / 255),
-		a * (65535 / 255)
+		r * 257, --257 = 65535 / 255
+		g * 257,
+		b * 257,
+		a * 257
 end
 
+--NOTE: formula from libpng/pngrtran.c
 function conv.rgba16.rgba8(r, g, b, a)
 	return
-		shr(r, 8),
-		shr(g, 8),
-		shr(b, 8),
-		shr(a, 8)
+		shr((r * 255 + 32895), 16),
+		shr((g * 255 + 32895), 16),
+		shr((b * 255 + 32895), 16),
+		shr((a * 255 + 32895), 16)
 end
 
 function conv.ga8.ga16(g, a)
 	return
-		g * (65535 / 255),
-		a * (65535 / 255)
+		g * 257,
+		a * 257
 end
 
 function conv.ga16.ga8(g, a)
 	return
-		shr(g, 8),
-		shr(a, 8)
+		shr((g * 255 + 32895), 16),
+		shr((a * 255 + 32895), 16)
 end
 
---NOTE: we want to round the result but math.floor(x+0.5) is expensive,
---so we just add 0.5 and clamp the result instead, and let the ffi truncate
---the value when it writes to an integer pointer.
-local function round8(x, max)
-	return math.min(math.max(x + 0.5, 0), 0xff)
+--NOTE: floor(x+0.5) is expensive as a round() function, so we just add 0.5
+--and clamp the result instead, and let the ffi truncate the value when
+--it writes it to the integer pointer.
+local function round8(x)
+	return min(max(x + 0.5, 0), 0xff)
 end
 
-local function round16(x, max)
-	return math.min(math.max(x + 0.5, 0), 0xffff)
+local function round16(x)
+	return min(max(x + 0.5, 0), 0xffff)
 end
 
 --NOTE: needs no clamping as long as the r, g, b values are within range.
@@ -424,7 +430,7 @@ end
 
 --smallest stride that is a multiple of 4 bytes
 local function aligned_stride(stride)
-	return band(math.ceil(stride) + 3, bnot(3))
+	return band(ceil(stride) + 3, bnot(3))
 end
 
 --minimum stride for a specific format
@@ -459,11 +465,12 @@ end
 
 local function new(w, h, format, bottom_up, stride_aligned, stride, malloc)
 	stride = valid_stride(format, w, stride, stride_aligned)
-	local size = math.ceil(stride * h)
+	local size = ceil(stride * h)
 	assert(size > 0, 'invalid size')
 	local data = malloc and glue.malloc(size) or ffi.new(ffi.typeof('char[$]', size))
 	return {w = w, h = h, format = format, bottom_up = bottom_up or nil,
-		stride = stride, data = data, size = size, malloc = not not malloc}
+		stride = stride, data = data, size = size,
+		malloc = malloc and true or nil}
 end
 
 local function free(bmp)
@@ -554,7 +561,7 @@ local function sub(bmp, x, y, w, h)
 		y = bmp.h - y - h
 	end
 	local i = y * stride + x * pixelsize
-	assert(i == math.floor(i), 'invalid coordinates')
+	assert(i == floor(i), 'invalid coordinates')
 	local byte_stride = stride * ffi.sizeof(format.ctype)
 	return {w = w, h = h, format = bmp.format, bottom_up = bmp.bottom_up,
 				stride = bmp.stride, data = data + i, size = byte_stride * h, parent = bmp}
@@ -575,7 +582,7 @@ local function paint(src, dst, convert_pixel)
 		and not convert_pixel
 		and src_stride == dst_stride
 		and not src.bottom_up == not dst.bottom_up
-		and src_stride == math.floor(src_rowsize) --won't write outside rowsize
+		and src_stride == floor(src_rowsize) --won't write outside rowsize
 	then
 		if src.data ~= dst.data then
 			assert(src.size == dst.size)
@@ -601,9 +608,9 @@ local function paint(src, dst, convert_pixel)
 	if
 		src_format == dst_format
 		and not convert_pixel
-		and src_stride == math.floor(src_stride) --we can't copy from fractional offsets
-		and dst_stride == math.floor(dst_stride) --we can't copy from fractional offsets
-		and src_rowsize == math.floor(src_rowsize) --we can't copy fractional row sizes
+		and src_stride == floor(src_stride) --can't copy from fractional offsets
+		and dst_stride == floor(dst_stride) --can't copy from fractional offsets
+		and src_rowsize == floor(src_rowsize) --can't copy fractional row sizes
 	then
 		dst_data = ffi.cast('char*', dst.data)
 		src_data = ffi.cast('char*', src.data)
@@ -616,13 +623,16 @@ local function paint(src, dst, convert_pixel)
 
 	--convert the bitmap pixel-by-pixel
 	if not convert_pixel and src_format.colortype ~= dst_format.colortype then
-		convert_pixel = assert(conv[src_format.colortype][dst_format.colortype], 'invalid conversion')
+		convert_pixel = assert(
+			conv[src_format.colortype][dst_format.colortype],
+			'invalid conversion')
 	end
 	for sj = 0, (src.h - 1) * src_stride, src_stride do
 		for i = 0, src.w-1 do
 			if convert_pixel then
-				dst_format.write(dst_data, dj + i * dst_pixelsize, convert_pixel(
-					src_format.read(src_data, sj + i * src_pixelsize)))
+				dst_format.write(dst_data, dj + i * dst_pixelsize,
+					convert_pixel(
+						src_format.read(src_data, sj + i * src_pixelsize)))
 			else
 				dst_format.write(dst_data, dj + i * dst_pixelsize,
 					src_format.read(src_data, sj + i * src_pixelsize))
@@ -641,7 +651,8 @@ local function copy(src, format, bottom_up, stride_aligned, stride)
 		if bottom_up == nil then bottom_up = src.bottom_up end
 		stride = stride or src.stride
 	end
-	return paint(src, new(src.w, src.h, format, bottom_up, stride_aligned, stride))
+	local dst = new(src.w, src.h, format, bottom_up, stride_aligned, stride)
+	return paint(src, dst)
 end
 
 --reflection
@@ -671,16 +682,24 @@ local function dumpinfo()
 		return table.concat(t, ', ')
 	end
 	local format = '%-10s %-6s %-25s %-10s %s'
-	print(string.format(format, '!format', 'bpp', 'ctype', 'colortype', 'conversions'))
+	print(string.format(format, '!format', 'bpp', 'ctype', 'colortype',
+		'conversions'))
 	for s,t in glue.sortedpairs(formats) do
-		local ct = {}; for d in conversions(s) do ct[#ct+1] = d; end; table.sort(ct)
-		print(string.format(format, s, tostring(t.bpp), tostring(t.ctype), t.colortype, table.concat(ct, ', ')))
+		local ct = {}
+		for d in conversions(s) do
+			ct[#ct+1] = d
+		end
+		table.sort(ct)
+		print(string.format(format, s, tostring(t.bpp), tostring(t.ctype),
+			t.colortype, table.concat(ct, ', ')))
 	end
 	local format = '%-12s %-10s %-6s  ->  %s'
-	print(string.format(format, '!colortype', 'channels', 'bpc', 'conversions'))
+	print(string.format(format, '!colortype', 'channels', 'bpc',
+		'conversions'))
 	for s,t in glue.sortedpairs(conv) do
 		local ct = colortypes[s]
-		print(string.format(format, s, ct.channels, tostring(ct.bpc), enumkeys(t)))
+		print(string.format(format, s, ct.channels, tostring(ct.bpc),
+			enumkeys(t)))
 	end
 end
 

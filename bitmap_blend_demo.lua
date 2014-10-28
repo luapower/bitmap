@@ -5,27 +5,16 @@ local cairo = require'cairo'
 
 local function bitmap_cairo(w, h)
 	local bmp = bitmap.new(w, h, 'bgra8', false, true)
-	local surface = cairo.cairo_image_surface_create_for_data(bmp.data, cairo.CAIRO_FORMAT_ARGB32,
-																					bmp.w, bmp.h, bmp.stride)
+	local surface = cairo.cairo_image_surface_create_for_data(
+		bmp.data, cairo.CAIRO_FORMAT_ARGB32, bmp.w, bmp.h, bmp.stride)
 	local context = surface:create_context()
 	return {surface = surface, context = context, bitmap = bmp}
 end
 
-local i = 0
 function player:on_render(cr)
 
-	i = (i + 1) % 10
-	if i == 0 then jit.flush() end
-
-	--background: grid
-	local sz = 30
-	for y=0,self.h/sz do
-		for x=0,self.w/sz do
-			cr:rectangle(x * sz, y * sz, sz, sz)
-			cr:set_source_rgba(1, 1, 1, 0.1 * ((x + y % 2) % 2))
-			cr:fill()
-		end
-	end
+	self.continuous_rendering = true
+	self:checkerboard()
 
 	local function blend(x, y, op)
 		local src = bitmap_cairo(100, 100)

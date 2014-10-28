@@ -57,8 +57,8 @@ rgb555                            rgba8               RGB                5      
 rgb444                            rgba8               RGB                4                  16
 rgba4444                          rgba8               RGB+alpha          4                  16
 rgba5551                          rgba8               RGB+alpha          5/5/5/1            16
-ga8, ag8                          ga8                 GRAY+alpha         8                  8
-ga16, ag16                        ga16                GRAY+alpha         16                 16
+ga8, ag8                          ga8                 GRAY+alpha         8                  16
+ga16, ag16                        ga16                GRAY+alpha         16                 32
 g1                                ga8                 GRAY               1                  1
 g2                                ga8                 GRAY               2                  2
 g4                                ga8                 GRAY               4                  4
