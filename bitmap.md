@@ -118,18 +118,18 @@ __utilities__
 
 ## Bitmap operations
 
-## `bitmap.new(w, h, format, [bottom_up], [stride_aligned], [stride]) -> new_bmp`
+### `bitmap.new(w, h, format, [bottom_up], [stride_aligned], [stride]) -> new_bmp`
 
 Create a bitmap object. If `stride_aligned` is `true` and no specific `stride`
 is given, the stride will be a multiple of 4 bytes.
 
-## `bitmap.copy(bmp, [format], [bottom_up], [stride_aligned], [stride]) -> new_bmp`
+### `bitmap.copy(bmp, [format], [bottom_up], [stride_aligned], [stride]) -> new_bmp`
 
 Copy a bitmap, optionally to a new format, orientation and stride. If `format`
 is not specified, stride and orientation default to those of source bitmap's,
 otherwise they default to top-down, minimum stride.
 
-## `bitmap.paint(source_bmp, dest_bmp[, convert_pixel]) -> dest_bmp`
+### `bitmap.paint(source_bmp, dest_bmp[, convert_pixel]) -> dest_bmp`
 
 Paint a source bitmap into a destination bitmap of the same width and height,
 with all the necessary pixel and colortype conversions.
@@ -146,7 +146,7 @@ smaller or equal stride and smaller or equal pixel size. The destination
 bitmap can also be the source bitmap itself, which is useful for performing
 custom transformations via the `convert_pixel` callback.
 
-## `bitmap.sub(bmp, [x], [y], [w], [h]) -> sub_bmp`
+### `bitmap.sub(bmp, [x], [y], [w], [h]) -> sub_bmp`
 
 Crop a bitmap without copying the pixels (the `data` field of the sub-bitmap
 is a pointer into the `data` buffer of the parent bitmap). The parent bitmap
@@ -170,7 +170,7 @@ of 8, 4, 2 respectively. For fractional strides don't even bother.
 
 ## Pixel interface
 
-## `bitmap.pixel_interface(bitmap[, colortype]) -> getpixel, setpixel`
+### `bitmap.pixel_interface(bitmap[, colortype]) -> getpixel, setpixel`
 
 Return an API for getting and setting individual pixels of a bitmap object:
 
@@ -202,7 +202,7 @@ bitmap.convert(bmp, bmp, darken)
 
 ## Channel interface
 
-## `bitmap.channel_interface(bitmap, channel) -> getvalue, setvalue`
+### `bitmap.channel_interface(bitmap, channel) -> getvalue, setvalue`
 
 Return an API for getting and setting values from a single color channel:
 
@@ -212,14 +212,14 @@ Return an API for getting and setting values from a single color channel:
 
 ## Dithering
 
-## `bitmap.dither.fs(bmp, rbits, gbits, bbits, abits)`
+### `bitmap.dither.fs(bmp, rbits, gbits, bbits, abits)`
 
 Dither a bitmap using the [Floyd-Steinberg dithering] algorithm. `*bits`
 specify the number of bits of color to keep for each channel (eg.
 `bitmap.dither.fs(bmp, 5, 6, 5, 0)` dithers a bitmap so that its colors fit
 into the `rgb565` format). Only implemented for 4-channel colortypes.
 
-## `bitmap.dither.ordered(bmp, mapsize)`
+### `bitmap.dither.ordered(bmp, mapsize)`
 
 Dither a bitmap using the [ordered dithering] algorithm. `mapsize` specifies
 the threshold map to use and can be 2, 3, 4 or 8. Use the demo to see how
@@ -234,27 +234,27 @@ will be done naturally when converting the bitmap to a lower bit depth.
 
 ## Pixel effects
 
-## `bitmap.invert(bmp)`
+### `bitmap.invert(bmp)`
 
 Invert colors.
 
-## `bitmap.grayscale(bmp)`
+### `bitmap.grayscale(bmp)`
 
 Convert pixels to grayscale, without changing the format.
 
-## `bitmap.convolve(bmp, kernel, [edge]) -> new_bmp`
+### `bitmap.convolve(bmp, kernel, [edge]) -> new_bmp`
 
 Convolve a bitmap using a kernel matrix (a Lua array of arrays of the same
 length). `edge` can be `crop`, `wrap` or `extend` (default is `extend`).
 
-## `bitmap.sharpen(bmp[, threshold]) -> new_bmp`
+### `bitmap.sharpen(bmp[, threshold]) -> new_bmp`
 
 Sharpen a bitmap.
 
 
 ## Alpha Blending
 
-## `bitmap.blend(source_bmp, dest_bmp, [operator], [x], [y])`
+### `bitmap.blend(source_bmp, dest_bmp, [operator], [x], [y])`
 
 Blend `source_bmp` into `dest_bmp` using a blending operator at `x,y`
 coordinates in the target bitmap (default is `0,0`).
@@ -281,37 +281,37 @@ end
 
 ## Resizing
 
-## `bitmap.resize.<method>(bmp, w, h) -> new_bmp`
-## `bitmap.resize.<method>(source_bmp, dest_bmp) -> dest_bmp`
+### `bitmap.resize.<method>(bmp, w, h) -> new_bmp`
+### `bitmap.resize.<method>(source_bmp, dest_bmp) -> dest_bmp`
 
 Resize a bitmap. The method can be `nearest` or `bilinear`.
 
 
 ## Utilities
 
-## `bitmap.min_stride(format, width) -> min_stride`
+### `bitmap.min_stride(format, width) -> min_stride`
 
 Return the minimum stride in bytes given a format and width.
 A bitmap data buffer should never be smaller than `min_stride * height`.
 
-## `bitmap.aligned_stride(stride) -> aligned_stride`
+### `bitmap.aligned_stride(stride) -> aligned_stride`
 
 Given a stride, return the smallest stride that is a multiple of 4 bytes.
 
-## `bitmap.row_size(bmp) -> size`
+### `bitmap.row_size(bmp) -> size`
 
 Bitmap's row size, in bytes, i.e. bitmap's minimum stride.
 
 ## Introspection
 
-## `bitmap.conversions(source_format) -> iter() -> name, def`
+### `bitmap.conversions(source_format) -> iter() -> name, def`
 
 Given a source bitmap format, iterate through all the formats that the source
 format can be converted to. `name` is the format name and `def` is
 the format definition which is a table with the fields `bpp`, `ctype`,
 `colortype`, `read`, `write`.
 
-## `bitmap.dumpinfo()`
+### `bitmap.dumpinfo()`
 
 Print the list of supported pixel formats and the list of supported
 colortype conversions.
