@@ -1,5 +1,4 @@
 ---
-project: bitmap
 tagline: in-memory bitmaps
 ---
 
