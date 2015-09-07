@@ -355,4 +355,3 @@ A custom colortype definition is a table with the following fields:
 ## TODO
 
   * premuliply / unpremultiply alpha
-
