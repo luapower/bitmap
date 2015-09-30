@@ -260,24 +260,6 @@ Blend `source_bmp` into `dest_bmp` using a blending operator at `x,y`
 coordinates in the target bitmap (default is `0,0`).
 Operators are in the `bitmap.blend_op` table for inspection.
 
-#### Example:
-
-Painting a bitmap onto another at specific coordinates, based on bitmap.fit
-and sub-bitmaps:
-
-~~~{.lua}
-local box2d = require'box2d'
-
-function paint_at_xy(src, dst, x, y)
-	local x, y, w, h = box2d.clip(x, y, src.w, src.h, 0, 0, dst.w, dst.h)
-	local src = bitmap.sub(src, 0, 0, w, h)
-	local dst = bitmap.sub(dst, x, y, w, h)
-	if src and dst then
-		bitmap.paint(src, dst)
-	end
-end
-~~~
-
 
 ## Resizing
 
