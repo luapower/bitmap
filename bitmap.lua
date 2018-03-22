@@ -694,9 +694,6 @@ local function paint(src, dst, dstx, dsty, convert_pixel, src_colortype, dst_col
 		and dst_stride == floor(dst_stride) --can't copy into fractional offsets
 		and src_rowsize == floor(src_rowsize) --can't copy fractional row sizes
 	then
-		if rawget(_G, 'here') then
-			print(dst.w, src.w, src_data, dst_data, src_stride, dst_stride, src_rowsize)
-		end
 		for sj = 0, (src.h - 1) * src_stride, src_stride do
 			ffi.copy(dst_data + dj, src_data + sj, src_rowsize)
 			dj = dj + dst_stride
