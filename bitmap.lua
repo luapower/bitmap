@@ -479,7 +479,7 @@ local function aligned_address(addr, align)
 	end
 	assert(align >= 2)
 	assert(band(align, align - 1) == 0) --must be power-of-two
-	return band(addr + align - 1, bnot(align - 1)), align
+	return band(tonumber(addr) + align - 1, bnot(align - 1)), align
 end
 
 local voidp_ct = ffi.typeof'void*'
